@@ -5,7 +5,6 @@ import subprocess
 import difflib
 from pathlib import Path
 
-import ollama
 import ai
 
 
@@ -530,11 +529,7 @@ def agent(prompt):
 
     for _ in range(max_steps):
 
-        response = ollama.chat(
-            model=ai.MODEL,
-            messages=messages,
-            tools=TOOLS,
-        )
+        response = ai.agent_chat(messages, TOOLS)
 
         message = response["message"]
 
@@ -575,12 +570,13 @@ def agent(prompt):
                     arguments,
                 )
 
-                messages.append(
-                    {
-                        "role": "tool",
-                        "content": str(result),
-                    }
-                )
+                tool_result = {
+                    "role": "tool",
+                    "content": str(result),
+                }
+                if tool_call.get("id"):
+                    tool_result["tool_call_id"] = tool_call["id"]
+                messages.append(tool_result)
 
             continue
 

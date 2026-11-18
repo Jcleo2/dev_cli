@@ -3,3 +3,27 @@
 dist/
 build/
 .venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Backups
+*.bak
+*.bk
+*~
+
+# Build artifacts
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+tests/

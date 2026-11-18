@@ -10,7 +10,31 @@ CONFIG_DIR = os.path.expanduser("~/.dev")
 
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config")
 
-PROVIDER = "ollama"
+def load_config():
+    settings = {}
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE) as f:
+            for line in f:
+                if "=" in line:
+                    key, value = line.strip().split("=", 1)
+                    settings[key] = value
+    return settings
+
+
+def save_setting(key, value):
+    settings = load_config()
+    if value is None:
+        settings.pop(key, None)
+    else:
+        settings[key] = value
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, "w") as f:
+        for name, item in settings.items():
+            f.write(f"{name}={item}\n")
+
+
+SETTINGS = load_config()
+PROVIDER = os.getenv("DEV_PROVIDER", SETTINGS.get("provider", "ollama")).lower()
 
 
 def get_hardware():
@@ -50,6 +74,8 @@ def load_speed():
     return None
 
 def choose_model():
+    if SETTINGS.get("ollama_model"):
+        return SETTINGS["ollama_model"]
     saved = load_speed()
 
     if saved == "blazing":
@@ -94,14 +120,14 @@ def choose_model():
         else:
             model = "qwen3:14b"
 
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-
-    with open(CONFIG_FILE, "w") as f:
-        f.write(f"speed={speed}\n")
-
+    save_setting("speed", speed)
     return model
-   
-MODEL = choose_model()
+
+
+if PROVIDER == "openai":
+    MODEL = os.getenv("DEV_OPENAI_MODEL", SETTINGS.get("openai_model", "gpt-4.1-mini"))
+else:
+    MODEL = os.getenv("DEV_OLLAMA_MODEL", SETTINGS.get("ollama_model") or choose_model())
 
 def ask_ollama(prompt: str) -> str:
     response = ollama.chat(
@@ -119,6 +145,13 @@ def ask_ollama(prompt: str) -> str:
 def get_openai_key():
     return keyring.get_password("DEV", "openai_api_key")
 
+def get_openai_client():
+    key = get_openai_key()
+    if not key:
+        raise ValueError("OpenAI API key is not configured.")
+    return OpenAI(api_key=key)
+
+
 def ask_openai(prompt: str, model:str) -> str:
 
     key = get_openai_key()
@@ -126,6 +159,7 @@ def ask_openai(prompt: str, model:str) -> str:
     if not key:
         raise ValueError("OpenAI API key is not configured.")
 
+    model = model or os.getenv("DEV_OPENAI_MODEL", "gpt-4.1-mini")
     client = OpenAI(api_key=key)
 
     response = client.responses.create(
@@ -140,7 +174,7 @@ def get_ollama_models():
     return [m.model for m in models.models]
 
 def get_openai_models():
-    client = OpenAI()
+    client = OpenAI(api_key=get_openai_key())
 
     models = client.models.list()
 
@@ -164,7 +198,23 @@ def ask_ai(prompt: str, model: str = None) -> str:
 
     raise ValueError(f"Unknown AI provider: {PROVIDER}")
 
+
+def agent_chat(messages, tools):
+    if PROVIDER == "ollama":
+        return ollama.chat(model=MODEL, messages=messages, tools=tools)
+
+    if PROVIDER == "openai":
+        response = get_openai_client().chat.completions.create(
+            model=MODEL, messages=messages, tools=tools
+        )
+        return {"message": response.choices[0].message.model_dump(exclude_none=True)}
+
+    raise ValueError(f"Unknown AI provider: {PROVIDER}")
+
+
 def ensure_model():
+    if PROVIDER != "ollama":
+        return
     models = ollama.list()
     names = [m.model for m in models.models]
     if MODEL not in names:
