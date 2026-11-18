@@ -1,9 +1,3 @@
-
-*.egg-info/
-dist/
-build/
-.venv/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -12,6 +6,7 @@ __pycache__/
 # Backups
 *.bak
 *.bk
+*.preconfig.bak
 *~
 
 # Build artifacts
@@ -26,4 +21,7 @@ venv/
 .env
 .env.*
 !.env.example
+
+# Development files
 tests/
+journal.md
