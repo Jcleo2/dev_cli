@@ -56,3 +56,10 @@
   BYE HACKERS!
 
   **Total time spent: 1 Hour 13 Minutes**
+
+
+  ---
+
+  Fixed bugs (there were many) according to reviewer feedback
+
+  **Total time spent: 1 Hour**
